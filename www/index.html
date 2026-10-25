@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>S7-200 PLC Simülatörü</title>
+<style>
+:root{--bg:#eef0ee;--card:#fff;--fg:#14211f;--mut:#7b8784;--ln:#cfd6d3;--ac:#0f766e;--on:#15a34a;--p:#d92d20;--m:#1d5fd1;--plc:#17413d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1514;--card:#18221f;--fg:#e8efed;--mut:#8a9794;--ln:#2c3835;--ac:#2dd4bf;--on:#4ade80;--p:#f87171;--m:#60a5fa;--plc:#0b2a27;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1514;--card:#18221f;--fg:#e8efed;--mut:#8a9794;--ln:#2c3835;--ac:#2dd4bf;--on:#4ade80;--p:#f87171;--m:#60a5fa;--plc:#0b2a27;color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px "Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+.bar{display:flex;gap:6px;padding:6px 8px;flex-wrap:wrap;align-items:center;background:var(--card);border-bottom:1px solid var(--ln)}
+button{min-height:40px;padding:0 12px;border:1px solid var(--ln);border-radius:8px;background:var(--card);color:var(--fg);font:inherit}
+button.a{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:600}
+button.r{border-color:var(--p);color:var(--p)}
+#st{color:var(--p);font-weight:600;margin-left:auto}
+#v1{flex:1;min-height:0;flex-direction:column}
+#v2{flex:1;min-height:0;overflow:auto;padding:10px;display:none}
+.hint{padding:3px 10px;color:var(--mut);font-size:12px}
+#w{flex:1;min-height:0}
+svg{width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;display:block}
+.wire{fill:none;stroke-width:4;stroke-linecap:round}
+.plc{fill:var(--plc)}.tx{fill:#e8efed;font:11px "Segoe UI",Roboto,sans-serif}.tt{fill:#e8efed;font:700 16px "Segoe UI",Roboto,sans-serif}
+.led{fill:#0b2a27;stroke:#2f5a54}.led.on{fill:#4ade80}.led.r.on{fill:#f87171}
+.term{fill:#fbbf24;stroke:#78350f;stroke-width:2}.hit{fill:transparent}
+.body{fill:var(--card);stroke:var(--mut);stroke-width:2}.body.sel{stroke:var(--ac);stroke-width:4}
+.lbl{fill:var(--mut);font:11px "Segoe UI",Roboto,sans-serif;text-anchor:middle}
+.spin{animation:sp .5s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes sp{to{transform:rotate(360deg)}}
+.net{background:var(--card);border:1px solid var(--ln);border-radius:10px;margin-bottom:10px;padding:8px}
+.nh{display:flex;gap:6px;align-items:center;margin-bottom:6px}.nh span{flex:1;font-weight:600}
+.nb{display:flex;align-items:center;overflow-x:auto}
+.rail{align-self:stretch;border-left:5px solid var(--fg)}
+.rows{flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px;border-right:3px solid var(--mut)}
+.row{display:flex;align-items:center;min-height:62px;background:linear-gradient(var(--mut),var(--mut)) center/100% 3px no-repeat}
+.el{min-width:62px;margin:0 10px;padding:4px 6px;text-align:center;background:var(--card);border:2px solid var(--mut);border-radius:8px}
+.el b{display:block;font:700 18px monospace}.el i{font:12px monospace;font-style:normal;color:var(--mut)}
+.el.on{border-color:var(--on);color:var(--on)}.el.on i{color:var(--on)}
+.coil{margin:0 4px 0 10px}
+#md{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:9}
+.box{background:var(--card);padding:16px;border-radius:12px;min-width:260px;display:flex;flex-direction:column;gap:8px}
+.box h3{margin:6px 0 0}.box{max-height:88vh;overflow:auto}select,input{min-height:40px;font:inherit;padding:0 8px;background:var(--bg);color:var(--fg);border:1px solid var(--ln);border-radius:8px}
+.bt{display:flex;gap:6px;margin-top:6px}
+#tip{position:fixed;display:none;max-width:270px;padding:10px 12px;background:var(--card);color:var(--fg);border:1px solid var(--ac);border-radius:10px;font-size:13px;line-height:1.45;z-index:8;pointer-events:none;box-shadow:0 4px 16px #0004}#tip b{color:var(--ac)}
+</style></head><body>
+<div class="bar">
+<button id="t1" class="a" onclick="go(1)">Devre</button><button id="t2" onclick="go(2)">Program (LAD)</button>
+<button id="rb" class="a">■ STOP</button><span id="st"></span>
+</div>
+<div id="v1" style="display:flex">
+<div class="bar">
+<button class="a" onclick="pick()">+ Eleman ekle</button>
+<button class="r" onclick="del()">Seçileni sil</button><button onclick="demo();ch()">Örnek</button><button onclick="clr()">Temizle</button>
+</div>
+<div class="hint">Bir elemanın ya da terminalin üzerine gel (sağ tık veya tablette uzun bas): amacı, nasıl bağlanacağı ve anlık durumu görünür. Terminalden terminale sürükleyerek kablo çek. Butona dokun/bas tut, anahtara dokun. Kablo veya elemanı seçip silebilirsin. L+ ve 1L bağlanmazsa çıkış çalışmaz.</div>
+<div id="w"><svg id="sv" viewBox="0 0 740 560"></svg></div>
+</div>
+<div id="v2"><div id="lad"></div></div>
+<div id="md"></div><div id="tip"></div>
+<script>
+const $=id=>document.getElementById(id),SV=$('sv');
+const IN=[0,1,2,3,4,5].map(i=>'I0.'+i),OUT=[0,1,2,3].map(i=>'Q0.'+i),MEM=[0,1,2,3,4,5,6,7].map(i=>'M0.'+i),TM=['T37','T38','T39','T40'],SUP=['L+','M','1L'];
+const PT={};[...IN,...SUP,...OUT].forEach((n,i)=>{PT['p:'+n]={x:34+i*52+(i<6?0:i<9?16:32),y:150,l:n}});
+const K={NO:'Buton NO',NC:'Buton NC',SW:'Anahtar',LMP:'Sarı lamba',LG:'Yeşil lamba',LR:'Kırmızı lamba',MOT:'Motor',ES:'Acil Stop',LS:'Limit sviç',IND:'Endüktif sensör',KAP:'Kapasitif sensör',FOT:'Fotoelektrik sensör',BZ:'Buzzer',VAL:'Solenoid valf',ULT:'Ultrasonik sensör',MAG:'Manyetik sensör',TRM:'Sıcaklık sensörü',PRS:'Basınç şalteri',FLT:'Şamandıra',THR:'Termostat',FAN:'Fan',PMP:'Pompa',HTR:'Isıtıcı',CIL:'Kontaktör bobini'};
+const SN=['IND','KAP','FOT','ULT','MAG','TRM'],LT=['SW','PRS','FLT','THR'];
+const pw=(c,n)=>n.pos!=n.neg&&n.f('c'+c.id+':a')==n.pos&&n.f('c'+c.id+':c')==n.neg;
+let S=null,run=true,sel=null,tab=1,v={},tm={},W=null,drag=null,last='';
+const cm=id=>S.comps.find(c=>c.id==id);
+const isB=c=>c.t=='NO'||c.t=='NC'||c.t=='LS';
+const cl=c=>(c.t=='NC'||c.t=='ES')?!c.on:(c.t=='NO'||c.t=='LS'||LT.includes(c.t))?!!c.on:false;
+function demo(){S={nid:5,comps:[{id:1,t:'NO',x:30,y:230,on:false},{id:2,t:'NC',x:30,y:340,on:false},{id:3,t:'LMP',x:560,y:230,on:false},{id:4,t:'MOT',x:560,y:340,on:false}],
+wires:[['p:L+','c1:a'],['c1:b','p:I0.0'],['p:L+','c2:a'],['c2:b','p:I0.1'],['p:L+','p:1L'],['p:Q0.0','c3:a'],['c3:b','p:M'],['p:Q0.1','c4:a'],['c4:b','p:M']],
+prog:[{rows:[[{t:'NO',a:'I0.0'},{t:'NO',a:'I0.1'}],[{t:'NO',a:'Q0.0'},{t:'NO',a:'I0.1'}]],out:{t:'=',a:'Q0.0'}},
+{rows:[[{t:'NO',a:'Q0.0'}]],out:{t:'TON',a:'T37',p:3}},{rows:[[{t:'NO',a:'T37'}]],out:{t:'=',a:'Q0.1'}}]};v={};tm={}}
+function clr(){S={nid:1,comps:[],wires:[],prog:[]};v={};tm={};sel=null;ch()}
+try{S=JSON.parse(localStorage.getItem('s7sim'))}catch(e){}
+if(!S||!S.comps)demo();S.comps.forEach(c=>c.on=false);
+function save(){try{localStorage.setItem('s7sim',JSON.stringify(S))}catch(e){}}
+function ch(){save();last='';tab==1?draw():ladder()}
+function net(){const P={};const f=a=>{if(!(a in P))P[a]=a;return P[a]===a?a:(P[a]=f(P[a]))};const u=(a,b)=>{P[f(a)]=f(b)};
+S.wires.forEach(w=>u(w[0],w[1]));S.comps.forEach(c=>{if(SN.includes(c.t)&&c.on&&f('c'+c.id+':a')==f('p:L+')&&f('c'+c.id+':c')==f('p:M'))u('c'+c.id+':a','c'+c.id+':b')});S.comps.forEach(c=>{if(c.t!='LMP'&&c.t!='MOT'&&cl(c))u('c'+c.id+':a','c'+c.id+':b')});
+OUT.forEach(q=>{if(v[q])u('p:1L','p:'+q)});return{f,pos:f('p:L+'),neg:f('p:M')}}
+function lit(c,n){if(n.pos==n.neg)return false;const a=n.f('c'+c.id+':a'),b=n.f('c'+c.id+':b');return(a==n.pos&&b==n.neg)||(a==n.neg&&b==n.pos)}
+function scan(dt){S.prog.forEach(r=>{r.rows.forEach(x=>x.forEach(e=>e.on=e.t=='NC'?!v[e.a]:!!v[e.a]));
+const rows=r.rows.filter(x=>x.length);r.on=rows.some(x=>x.every(e=>e.on));const c=r.out,a=c.a;
+if(c.t=='=')v[a]=r.on;else if(c.t=='S'){if(r.on)v[a]=true}else if(c.t=='R'){if(r.on)v[a]=false}
+else{const T=tm[a]=tm[a]||{acc:0};T.acc=r.on?T.acc+dt:0;v[a]=T.acc>=(c.p||1)*1000}})}
+function tick(){const n=net();IN.forEach(i=>v[i]=n.pos!=n.neg&&n.f('p:'+i)==n.pos);
+if(run)scan(50);else S.prog.forEach(r=>{r.on=false;r.rows.forEach(x=>x.forEach(e=>e.on=false))});
+const g=JSON.stringify([run,v,S.comps.map(c=>c.on),S.prog.map(r=>[r.on,r.rows.map(x=>x.map(e=>e.on))])]);
+$('st').textContent=net().pos==net().neg?'⚠ Kısa devre: L+ ile M birleşti':'';
+if(g!=last){last=g;tab==1?draw():ladder()}}
+setInterval(tick,50);
+$('rb').onclick=()=>{run=!run;if(!run){v={};tm={}}$('rb').textContent=run?'■ STOP':'▶ RUN';$('rb').className=run?'a':'';last=''};
+function tp(id){if(id[0]=='p')return PT[id];const[c,s]=id.split(':'),m=cm(c.slice(1));return s=='c'?{x:m.x+45,y:m.y+62}:{x:m.x+(s=='a'?0:90),y:m.y+22}}
+const dir=id=>id[0]=='p'?[0,1]:id.endsWith(':a')?[-1,0]:id.endsWith(':c')?[0,1]:[1,0];
+function pd(a,b,q){const A=tp(a),B=q||tp(b),u=dir(a),w=q?[0,0]:dir(b);return`M${A.x} ${A.y}C${A.x+u[0]*60} ${A.y+u[1]*60} ${B.x+w[0]*60} ${B.y+w[1]*60} ${B.x} ${B.y}`}
+function draw(){if(tab!=1)return;const n=net(),sh=n.pos==n.neg;let h='';
+h+=`<rect class="plc" x="10" y="14" width="720" height="136" rx="10"/><text class="tt" x="26" y="42">SIEMENS SIMATIC S7-200</text><text class="tx" x="26" y="60">CPU 224 · 24V DC · röle çıkış</text>`;
+h+=`<circle class="led ${run?'on':''}" cx="640" cy="36" r="8"/><text class="tx" x="654" y="40">RUN</text><circle class="led r ${run?'':'on'}" cx="640" cy="60" r="8"/><text class="tx" x="654" y="64">STOP</text>`;
+h+=`<text class="tx" x="34" y="98">Girişler</text><text class="tx" x="362" y="98">Besleme</text><text class="tx" x="534" y="98">Çıkışlar</text>`;
+S.wires.forEach((w,i)=>{const f=n.f(w[0]),c=sh?'var(--p)':f==n.pos?'var(--p)':f==n.neg?'var(--m)':'var(--mut)',d=pd(w[0],w[1]);
+if(sel&&sel.k=='w'&&sel.i==i)h+=`<path class="wire" d="${d}" style="stroke:var(--ac);stroke-width:12;opacity:.35"/>`;
+h+=`<path class="wire" d="${d}" style="stroke:${c}"/><path d="${d}" data-w="${i}" style="fill:none;stroke:transparent;stroke-width:22"/>`});
+if(W)h+=`<path class="wire" d="${pd(W.from,null,W.p)}" style="stroke:var(--ac);stroke-dasharray:6 6"/>`;
+S.comps.forEach(c=>{const s=sel&&sel.k=='c'&&sel.i==c.id,L=lit(c,n);let y='';
+if(isB(c))y=`<circle cx="45" cy="22" r="15" style="fill:${cl(c)?'var(--on)':'var(--mut)'}"/><text x="45" y="27" text-anchor="middle" style="fill:#fff;font:700 13px sans-serif">${c.t}</text>`;
+else if(SN.includes(c.t))y=`<circle cx="45" cy="11" r="5" style="fill:${pw(c,n)&&c.on?'#facc15':'var(--mut)'}"/><text x="45" y="32" text-anchor="middle" style="fill:${c.on?'var(--ac)':'var(--mut)'};font:700 12px sans-serif">${c.t}</text><text class="lbl" x="4" y="14">+</text><text class="lbl" x="86" y="14">OUT</text><text class="lbl" x="58" y="58">0V</text>`;
+else if(c.t=='BZ')y=`<circle cx="45" cy="22" r="14" style="fill:${L?'#fb923c':'var(--bg)'};stroke:var(--mut);stroke-width:2"/><text x="45" y="27" text-anchor="middle" style="fill:var(--fg);font:700 12px sans-serif">BZ</text>${L?'<path d="M62 12Q68 22 62 32" style="fill:none;stroke:#fb923c;stroke-width:3"/>':''}`;
+else if(c.t=='HTR')y=`<path d="M22 22l7-11 8 22 8-22 8 22 7-11" style="fill:none;stroke:${L?'#ef4444':'var(--mut)'};stroke-width:3;stroke-linejoin:round"/>`;
+else if(c.t=='CIL')y=`<rect x="26" y="9" width="38" height="26" rx="3" style="fill:${L?'var(--on)':'var(--bg)'};stroke:var(--mut);stroke-width:2"/><text x="45" y="27" text-anchor="middle" style="fill:var(--fg);font:700 13px sans-serif">K1</text>`;
+else if(c.t=='VAL')y=`<rect x="26" y="9" width="38" height="26" rx="3" style="fill:${L?'var(--on)':'var(--bg)'};stroke:var(--mut);stroke-width:2"/><text x="45" y="27" text-anchor="middle" style="fill:var(--fg);font:700 13px sans-serif">Y</text>`;
+else if(c.t=='ES')y=`<circle cx="45" cy="22" r="${c.on?11:16}" style="fill:var(--p);stroke:#7f1d1d;stroke-width:3"/><text x="45" y="26" text-anchor="middle" style="fill:#fff;font:700 10px sans-serif">STOP</text>`;
+else if(LT.includes(c.t))y=`<line x1="28" y1="30" x2="62" y2="${c.on?30:10}" style="stroke:${c.on?'var(--on)':'var(--mut)'};stroke-width:6;stroke-linecap:round"/>`;
+else if(c.t=='LMP'||c.t=='LG'||c.t=='LR')y=`<circle cx="45" cy="22" r="16" style="fill:${L?({LG:'#22c55e',LR:'#ef4444'}[c.t]||'#facc15'):'var(--bg)'};stroke:var(--mut);stroke-width:2"/><path d="M34 11L56 33M56 11L34 33" style="stroke:var(--mut);stroke-width:2"/>`;
+else y=`<circle cx="45" cy="22" r="17" style="fill:var(--bg);stroke:${L?'var(--on)':'var(--mut)'};stroke-width:3"/><g class="${L?'spin':''}"><path d="M45 8V36M31 22H59" style="stroke:var(--mut);stroke-width:2"/></g><text x="45" y="27" text-anchor="middle" style="fill:var(--fg);font:700 13px sans-serif">${{FAN:'F',PMP:'P'}[c.t]||'M'}</text>`;
+h+=`<g transform="translate(${c.x} ${c.y})"><line x1="0" y1="22" x2="90" y2="22" style="stroke:var(--mut);stroke-width:3"/>${SN.includes(c.t)?'<line x1="45" y1="44" x2="45" y2="62" style="stroke:var(--mut);stroke-width:3"/>':''}<rect class="body ${s?'sel':''}" x="12" y="0" width="66" height="44" rx="8" data-c="${c.id}"/><g style="pointer-events:none">${y}</g><text class="lbl" x="45" y="${SN.includes(c.t)?-6:60}">${K[c.t]}</text></g>`});
+[...IN,...SUP,...OUT].forEach(nm=>{const p=PT['p:'+nm],on=IN.includes(nm)||OUT.includes(nm)?v[nm]:false;
+h+=(IN.includes(nm)||OUT.includes(nm)?`<circle class="led ${on?'on':''}" cx="${p.x}" cy="118" r="6"/>`:'')+`<text class="tx" x="${p.x}" y="138" text-anchor="middle">${nm}</text><circle class="term" cx="${p.x}" cy="${p.y}" r="7"/><circle class="hit" cx="${p.x}" cy="${p.y}" r="15" data-t="p:${nm}"/>`});
+S.comps.forEach(c=>(SN.includes(c.t)?['a','b','c']:['a','b']).forEach(s=>{const p=tp('c'+c.id+':'+s);h+=`<circle class="term" cx="${p.x}" cy="${p.y}" r="7"/><circle class="hit" cx="${p.x}" cy="${p.y}" r="15" data-t="c${c.id}:${s}"/>`}));
+SV.innerHTML=h}
+function pt(e){const p=SV.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(SV.getScreenCTM().inverse())}
+SV.onpointerdown=e=>{hideTip();if(e.button>0)return;const p=pt(e),t=e.target.dataset;SV.setPointerCapture(e.pointerId);
+if(t.t){W={from:t.t,p}}else if(t.c){const c=cm(t.c);drag={c,dx:p.x-c.x,dy:p.y-c.y,sx:p.x,sy:p.y,mv:0};if(isB(c))c.on=true;sel={k:'c',i:c.id}}
+else if(t.w!==undefined)sel={k:'w',i:+t.w};else sel=null;last='';draw()};
+SV.onpointermove=e=>{const p=pt(e);if(W){W.p=p;draw()}else if(drag){const d=drag;if(!d.mv&&Math.hypot(p.x-d.sx,p.y-d.sy)>8){d.mv=1;if(isB(d.c))d.c.on=false}
+if(d.mv){d.c.x=Math.max(0,Math.min(650,p.x-d.dx));d.c.y=Math.max(170,Math.min(480,p.y-d.dy));draw()}}};
+SV.onpointerup=SV.onpointercancel=e=>{if(W){const el=document.elementFromPoint(e.clientX,e.clientY),t=el&&el.dataset&&el.dataset.t;
+if(t&&t!=W.from&&!S.wires.some(w=>(w[0]==W.from&&w[1]==t)||(w[0]==t&&w[1]==W.from)))S.wires.push([W.from,t]);W=null}
+if(drag){const c=drag.c;if(!drag.mv&&(LT.includes(c.t)||c.t=='ES'||SN.includes(c.t)))c.on=!c.on;if(isB(c))c.on=false;drag=null}save();last='';draw()};
+function pick(){const g=[['Anahtarlar',['NO','NC','SW','ES','LS']],['Proses şalterleri (2 telli)',['PRS','FLT','THR']],['Sensörler (3 telli PNP)',['IND','KAP','FOT','ULT','MAG','TRM']],['Yükler',['LMP','LG','LR','BZ','VAL','HTR','CIL','MOT','FAN','PMP']]];md(g.map(x=>`<h3>${x[0]}</h3><div class="bt" style="flex-wrap:wrap">${x[1].map(t=>`<button onclick="add('${t}');md()">${K[t]}</button>`).join('')}</div>`).join('')+'<button onclick="md()">Kapat</button>')}
+function add(t){const n=S.comps.length;S.comps.push({id:S.nid++,t,x:40+(n%5)*135,y:230+Math.floor(n/5%3)*100,on:false});ch()}
+function del(){if(!sel)return;if(sel.k=='w')S.wires.splice(sel.i,1);else{const p='c'+sel.i+':';S.comps=S.comps.filter(c=>c.id!=sel.i);S.wires=S.wires.filter(w=>!w.some(t=>t.startsWith(p)))}sel=null;ch()}
+function go(t){tab=t;$('v1').style.display=t==1?'flex':'none';$('v2').style.display=t==2?'block':'none';$('t1').className=t==1?'a':'';$('t2').className=t==2?'a':'';last='';t==1?draw():ladder()}
+const CA=[...IN,...OUT,...MEM,...TM],OA=[...OUT,...MEM,...TM];
+const o=(l,s)=>l.map(x=>`<option value="${x[0]}" ${x[0]==s?'selected':''}>${x[1]}</option>`).join('');
+function md(h){const m=$('md');m.innerHTML=h?'<div class="box">'+h+'</div>':'';m.style.display=h?'flex':'none'}
+function ladder(){let h='';S.prog.forEach((r,i)=>{const c=r.out,sy={'=':'( )',S:'(S)',R:'(R)',TON:'TON'}[c.t];
+h+=`<div class="net"><div class="nh"><span>Ağ ${i+1}</span><button onclick="addRow(${i})">+ Paralel kol</button><button class="r" onclick="delNet(${i})">Sil</button></div><div class="nb"><div class="rail"></div><div class="rows">`;
+r.rows.forEach((row,j)=>{h+=`<div class="row">`+row.map((e,k)=>`<div class="el ${e.on?'on':''}" onclick="editEl(${i},${j},${k})"><b>${e.t=='NC'?'|/|':'| |'}</b><i>${e.a}</i></div>`).join('')+`<div class="el" onclick="editEl(${i},${j},-1)"><b>+</b><i>kontak</i></div></div>`});
+h+=`</div><div class="el coil ${r.on?'on':''}" onclick="editCoil(${i})"><b>${sy}</b><i>${c.a}${c.t=='TON'?' '+(c.p||1)+' sn':''}</i></div></div></div>`});
+$('lad').innerHTML=h+`<button class="a" onclick="addNet()">+ Ağ ekle</button>`}
+function addNet(){S.prog.push({rows:[[{t:'NO',a:'I0.0'}]],out:{t:'=',a:'Q0.0'}});ch()}
+function delNet(i){S.prog.splice(i,1);ch()}
+function addRow(i){S.prog[i].rows.push([]);ch()}
+function editEl(i,j,k){const e=k>=0?S.prog[i].rows[j][k]:{t:'NO',a:'I0.0'};
+md(`<h3>Kontak</h3><select id="mt">${o([['NO','Normalde açık | |'],['NC','Normalde kapalı |/|']],e.t)}</select><select id="ma">${o(CA.map(x=>[x,x]),e.a)}</select><div class="bt"><button class="a" onclick="okEl(${i},${j},${k})">Tamam</button>${k>=0?`<button class="r" onclick="delEl(${i},${j},${k})">Sil</button>`:''}<button onclick="md()">İptal</button></div>`)}
+function okEl(i,j,k){const r=S.prog[i].rows[j],e={t:$('mt').value,a:$('ma').value};k>=0?r[k]=e:r.push(e);md();ch()}
+function delEl(i,j,k){const R=S.prog[i].rows;R[j].splice(k,1);if(!R[j].length&&R.length>1)R.splice(j,1);md();ch()}
+function editCoil(i){const c=S.prog[i].out;
+md(`<h3>Çıkış</h3><select id="mt">${o([['=','( ) Bobin'],['S','(S) Set'],['R','(R) Reset'],['TON','TON Gecikmeli aç']],c.t)}</select><select id="ma">${o(OA.map(x=>[x,x]),c.a)}</select><input id="mp" type="number" min="0.1" step="0.1" value="${c.p||3}"><small>Zaman: saniye (yalnızca TON, adres T37–T40)</small><div class="bt"><button class="a" onclick="okCoil(${i})">Tamam</button><button onclick="md()">İptal</button></div>`)}
+function okCoil(i){let t=$('mt').value,a=$('ma').value;if(t=='TON'&&a[0]!='T')a='T37';S.prog[i].out={t,a,p:Math.max(.1,+$('mp').value||3)};md();ch()}
+const TI={
+NO:['Start butonu (NO)','Normalde açık kontak; basılınca kapanır, bırakınca açılır. Motoru ya da prosesi başlatmak için kullanılır.','L+ → butonun bir ucu, diğer ucu → I0.x girişi. Basınca giriş 24V alır.'],
+NC:['Stop butonu (NC)','Normalde kapalı kontak; basılınca açılır. Kablo kopsa bile sistem durur (fail-safe).','L+ → bir uç, diğer uç → I0.x. Giriş normalde 24V’dur, bu yüzden programda NO kontak kullan.'],
+SW:['Anahtar','Konumunu korur. Mod seçimi (el/otomatik) ya da sürekli çalıştırma için kullanılır.','L+ → bir uç, diğer uç → I0.x. Dokununca açılır veya kapanır.'],
+ES:['Acil stop (NC mantar buton)','Basılınca kilitlenir ve devreyi keser. Güvenlik içindir, her tehlikede makineyi durdurur.','L+ → bir uç, diğer uç → I0.x. Programda NO kontak kullan. Serbest bırakmak için tekrar dokun.'],
+LS:['Limit sviç (NO)','Mekanik konum sensörü; parça ya da kapak temas edince kapanır.','L+ → bir uç, diğer uç → I0.x. Basılı tutarak parçanın değdiğini taklit et.'],
+LMP:['Sinyal lambası (24V DC)','Bir çıkışın ya da çalışma durumunun görsel göstergesi.','Qx.x → lambanın bir ucu, diğer ucu → M. 1L terminali L+’ya bağlı olmalı.'],
+MOT:['DC motor (24V)','Çıkış tarafından sürülen yük; enerjilenince döner. Gerçekte büyük motorlar kontaktör üzerinden sürülür.','Qx.x → motorun bir ucu, diğer ucu → M. 1L terminali L+’ya bağlı olmalı.']};
+const sn3='Kahverengi (+, sol uç) → L+; mavi (0V, alt uç) → M; siyah (OUT, sağ uç) → I0.x. PNP: nesne varken çıkış +24V verir. Dokununca nesne var/yok olur.';
+TI.IND=['Endüktif yaklaşım sensörü','Metal nesneleri temassız algılar (konum, sayma, dişli/mil takibi). Plastik ve ahşabı görmez.',sn3];
+TI.KAP=['Kapasitif sensör','Metal, plastik, sıvı, ahşap gibi çoğu malzemeyi algılar. Seviye ve doluluk kontrolünde kullanılır.',sn3];
+TI.FOT=['Fotoelektrik sensör','Işık demetinin kesilmesiyle nesne algılar. Bant üzerindeki ürünü saymak ve geçişi tespit etmek için kullanılır.',sn3];
+TI.BZ=['Buzzer (siren)','Sesli uyarı verir. Alarm ve hata bildirimi için çıkışla sürülür.','Qx.x → bir uç, diğer uç → M. 1L terminali L+’ya bağlı olmalı.'];
+TI.VAL=['Solenoid valf (24V)','Enerjilenince hava/su hattını açar. Silindir ve dolum sistemlerinde kullanılır.','Qx.x → bir uç, diğer uç → M. 1L terminali L+’ya bağlı olmalı.'];
+TI.LG=['Yeşil lamba','Çalışıyor / normal durum göstergesi.','Qx.x → bir uç, diğer uç → M. 1L terminali L+’ya bağlı olmalı.'];
+TI.LR=['Kırmızı lamba','Hata / alarm / durdu göstergesi.','Qx.x → bir uç, diğer uç → M. 1L terminali L+’ya bağlı olmalı.'];
+const w2='L+ → bir uç, diğer uç → I0.x. Dokununca kontak kapanır/açılır (süreç koşulunu taklit eder).';
+TI.ULT=['Ultrasonik sensör','Ses dalgasıyla mesafe ölçer; şeffaf, renkli ya da sıvı yüzeyleri de algılar. Seviye ve mesafe kontrolünde kullanılır.',sn3];
+TI.MAG=['Manyetik (reed/hall) sensör','Mıknatıs yaklaşınca algılar. Pnömatik silindirin uç konumunu bulmak için kullanılır.',sn3];
+TI.TRM=['Sıcaklık sensörü (eşik)','Sıcaklık ayar değerini aşınca çıkış verir. Aşırı ısınma koruması ve fırın kontrolünde kullanılır.',sn3];
+TI.PRS=['Basınç şalteri','Hat basıncı ayar değerine ulaşınca kontağı kapatır. Kompresör ve hidrolik koruması içindir.',w2];
+TI.FLT=['Şamandıra (seviye şalteri)','Depodaki sıvı seviyesi yükselince kontağı kapatır. Pompayı doldurma/boşaltma kontrolünde kullanılır.',w2];
+TI.THR=['Termostat','Sıcaklık ayar değerine ulaşınca kontağı kapatır. Isıtıcı ve fan kontrolünde kullanılır.',w2];
+TI.FAN=['Fan (24V)','Havalandırma ve soğutma yükü; enerjilenince döner.','Qx.x → bir uç, diğer uç → M. 1L terminali L+’ya bağlı olmalı.'];
+TI.PMP=['Pompa (24V)','Sıvıyı taşıyan yük; enerjilenince çalışır.','Qx.x → bir uç, diğer uç → M. 1L terminali L+’ya bağlı olmalı.'];
+TI.HTR=['Isıtıcı rezistans','Enerjilenince ısınır. Gerçekte yüksek akım nedeniyle kontaktörle sürülür.','Qx.x → bir uç, diğer uç → M. 1L terminali L+’ya bağlı olmalı.'];
+TI.CIL=['Kontaktör bobini','Büyük yükleri anahtarlayan kontaktörün bobini; PLC çıkışı bobini sürer, kontaklar gücü taşır.','Qx.x → bobinin A1 ucu, A2 ucu → M. 1L terminali L+’ya bağlı olmalı.'];
+const PI={'L+':['L+ (+24V DC)','Sensör besleme çıkışı; buton ve anahtarlara enerji verir.','Butonların bir ucuna ve 1L terminaline bağla.'],M:['M (0V)','Besleme ortağı (şase). Yüklerin dönüş yolu.','Lamba ve motorun boşta kalan ucunu buraya bağla.'],'1L':['1L (çıkış ortağı)','Röle çıkışlarının ortak giriş terminali; yükün beslemesini taşır.','L+ ile birleştir. Bağlanmazsa Q çıkışları yük sürmez.']};
+function hideTip(){$('tip').style.display='none'}
+function tipAt(e){const t=e.target.dataset||{};let k=null,a=null,s='';
+if(t.c)k=cm(t.c);else if(t.t&&t.t[0]=='c')k=cm(t.t.slice(1).split(':')[0]);
+if(k){a=TI[k.t];const n=net();s=SN.includes(k.t)?((k.on?'Nesne algılandı':'Nesne yok')+(pw(k,n)?', besleme var':', besleme YOK (+ ve 0V bağla)')+(pw(k,n)&&k.on?', çıkış 24V':'')):['LMP','LG','LR','BZ','VAL','HTR','CIL'].includes(k.t)?(lit(k,n)?'Enerjili':'Kapalı'):k.t=='MOT'?(lit(k,n)?'Dönüyor':'Duruyor'):(cl(k)?'Kontak kapalı (iletimde)':'Kontak açık')}
+else if(t.t){const nm=t.t.slice(2);if(PI[nm])a=PI[nm];else if(IN.includes(nm)){a=[nm+' dijital giriş','24V görünce biti 1 olur; programda I kontağı olarak kullanılır.','Buton ya da sensörün çıkış ucunu buraya bağla, diğer uç L+.'];s=v[nm]?'1 (24V var)':'0 (24V yok)'}
+else{a=[nm+' röle çıkışı','Program bitini 1 yapınca 1L ile bu terminali birleştirir.','Yükü '+nm+' ile M arasına bağla; 1L → L+.'];s=v[nm]?'1 (röle çekili)':'0 (açık)'}}
+if(!a){hideTip();return}
+const d=$('tip');d.innerHTML=`<b>${a[0]}</b><br>${a[1]}<br><u>Bağlantı:</u> ${a[2]}${s?'<br><u>Durum:</u> '+s:''}`;d.style.display='block';
+d.style.left=Math.max(4,Math.min(e.clientX+14,innerWidth-285))+'px';d.style.top=Math.max(4,Math.min(e.clientY+14,innerHeight-200))+'px'}
+SV.addEventListener('pointermove',e=>{if(e.pointerType=='mouse'&&!W&&!drag)tipAt(e)});
+SV.addEventListener('pointerleave',e=>{if(e.pointerType=='mouse')hideTip()});
+SV.addEventListener('contextmenu',e=>{e.preventDefault();tipAt(e)});
+draw();
+</script></body></html>
